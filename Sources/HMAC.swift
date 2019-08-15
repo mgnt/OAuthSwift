@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import CommonCrypto
 
 open class HMAC {
 
@@ -39,6 +40,35 @@ open class HMAC {
         return Data(bytes: UnsafePointer<UInt8>(mac), count: mac.count)
 
     }
+    
+    class internal func sha256(key: Data, message: Data) -> Data? {
+        
+        let blockSize = 64
+        var key = key.bytes
+        let message = message.bytes
+        
+        if key.count > blockSize {
+            key = SHA256(key).calculate()
+        } else if key.count < blockSize { // padding
+            key += [UInt8](repeating: 0, count: blockSize - key.count)
+        }
+        
+        var ipad = [UInt8](repeating: 0x36, count: blockSize)
+        for idx in key.indices {
+            ipad[idx] = key[idx] ^ ipad[idx]
+        }
+        
+        var opad = [UInt8](repeating: 0x5c, count: blockSize)
+        for idx in key.indices {
+            opad[idx] = key[idx] ^ opad[idx]
+        }
+        
+        let ipadAndMessageHash = SHA256(ipad + message).calculate()
+        let mac = SHA256(opad + ipadAndMessageHash).calculate()
+        
+        let data = Data(bytes: UnsafePointer<UInt8>(mac), count: mac.count)
+        return data
+    }
 
 }
 
@@ -47,8 +77,10 @@ extension HMAC: OAuthSwiftSignatureDelegate {
         switch hashMethod {
         case .sha1:
             return sha1(key: key, message: message)
+        case .sha256:
+            return sha256(key: key, message: message)
         case .none:
-            assertionFailure("Must no sign with none")
+            assertionFailure("Must not sign with none")
             return nil
         }
     }

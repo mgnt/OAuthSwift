@@ -21,12 +21,16 @@ public protocol OAuthSwiftSignatureDelegate {
 // The hash method used.
 public enum OAuthSwiftHashMethod: String {
     case sha1
+    case sha256
     case none
 
     func hash(data: Data) -> Data? {
         switch self {
         case .sha1:
             let mac = SHA1(data).calculate()
+            return Data(bytes: UnsafePointer<UInt8>(mac), count: mac.count)
+        case .sha256:
+            let mac = SHA256(data).calculate()
             return Data(bytes: UnsafePointer<UInt8>(mac), count: mac.count)
         case .none:
             return data
@@ -83,6 +87,7 @@ open class OAuthSwiftCredential: NSObject, NSSecureCoding, Codable {
 
     public enum SignatureMethod: String {
         case HMAC_SHA1 = "HMAC-SHA1"
+        case HMAC_SHA256 = "HMAC-SHA256"
         case RSA_SHA1 = "RSA-SHA1"
         case PLAINTEXT = "PLAINTEXT"
 
@@ -93,6 +98,8 @@ open class OAuthSwiftCredential: NSObject, NSSecureCoding, Codable {
             switch self {
             case .HMAC_SHA1, .RSA_SHA1:
                 return .sha1
+            case .HMAC_SHA256:
+                return .sha256
             case .PLAINTEXT:
                 return .none
             }
@@ -239,6 +246,7 @@ open class OAuthSwiftCredential: NSObject, NSSecureCoding, Codable {
     }
 
     open func encode(with coder: NSCoder) {
+        coder.encode(self.realm, forKey: NSCodingKeys.realm)
         coder.encode(self.consumerKey, forKey: NSCodingKeys.consumerKey)
         coder.encode(self.consumerSecret, forKey: NSCodingKeys.consumerSecret)
         coder.encode(self.oauthToken, forKey: NSCodingKeys.oauthToken)
@@ -247,7 +255,6 @@ open class OAuthSwiftCredential: NSObject, NSSecureCoding, Codable {
         coder.encode(self.oauthVerifier, forKey: NSCodingKeys.oauthVerifier)
         coder.encode(self.oauthTokenExpiresAt, forKey: NSCodingKeys.oauthTokenExpiresAt)
         coder.encode(self.version.toInt32, forKey: NSCodingKeys.version)
-        coder.encode(self.realm, forKey: NSCodingKeys.realm)
         if case .oauth1 = version {
             coder.encode(self.signatureMethod.rawValue, forKey: NSCodingKeys.signatureMethod)
         }
