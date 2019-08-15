@@ -92,7 +92,9 @@ open class OAuthSwiftCredential: NSObject, NSSecureCoding, Codable {
         case PLAINTEXT = "PLAINTEXT"
 
         public static var delegates: [SignatureMethod: OAuthSwiftSignatureDelegate.Type] =
-            [HMAC_SHA1: HMAC.self]
+            [HMAC_SHA1: HMAC.self,
+             HMAC_SHA256: HMAC.self
+            ]
 
         var hashMethod: OAuthSwiftHashMethod {
             switch self {
