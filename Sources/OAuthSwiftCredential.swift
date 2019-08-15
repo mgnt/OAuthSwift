@@ -118,6 +118,7 @@ open class OAuthSwiftCredential: NSObject, NSSecureCoding, Codable {
     open internal(set) var oauthVerifier = ""
     open var version: Version = .oauth1
     open var signatureMethod: SignatureMethod = .HMAC_SHA1
+    open var realm: String = ""
 
     /// hook to replace headers creation
     open var headersFactory: OAuthSwiftCredentialHeadersFactory?
@@ -146,6 +147,7 @@ open class OAuthSwiftCredential: NSObject, NSSecureCoding, Codable {
         static let oauthVerifier = base + "oauth_verifier"
         static let version = base + "version"
         static let signatureMethod = base + "signatureMethod"
+        static let realm = base + "realm"
     }
 
     /// Cannot declare a required initializer within an extension.
@@ -223,6 +225,17 @@ open class OAuthSwiftCredential: NSObject, NSSecureCoding, Codable {
         if case .oauth1 = version {
             self.signatureMethod = SignatureMethod(rawValue: (decoder.decodeObject(of: NSString.self, forKey: NSCodingKeys.signatureMethod) as String?) ?? "HMAC_SHA1") ?? .HMAC_SHA1
         }
+        
+        guard let realm = decoder
+            .decodeObject(of: NSString.self,
+                          forKey: NSCodingKeys.realm) as String? else {
+                            if #available(iOS 9, OSX 10.11, *) {
+                                let error = CocoaError.error(.coderValueNotFound)
+                                decoder.failWithError(error)
+                            }
+                            return nil
+        }
+        self.realm = realm
     }
 
     open func encode(with coder: NSCoder) {
@@ -234,6 +247,7 @@ open class OAuthSwiftCredential: NSObject, NSSecureCoding, Codable {
         coder.encode(self.oauthVerifier, forKey: NSCodingKeys.oauthVerifier)
         coder.encode(self.oauthTokenExpiresAt, forKey: NSCodingKeys.oauthTokenExpiresAt)
         coder.encode(self.version.toInt32, forKey: NSCodingKeys.version)
+        coder.encode(self.realm, forKey: NSCodingKeys.realm)
         if case .oauth1 = version {
             coder.encode(self.signatureMethod.rawValue, forKey: NSCodingKeys.signatureMethod)
         }
@@ -251,6 +265,7 @@ open class OAuthSwiftCredential: NSObject, NSSecureCoding, Codable {
         case oauthTokenExpiresAt
         case version
         case signatureMethodRawValue
+        case realm
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -266,6 +281,7 @@ open class OAuthSwiftCredential: NSObject, NSSecureCoding, Codable {
         if case .oauth1 = version {
             try container.encode(self.signatureMethod.rawValue, forKey: .signatureMethodRawValue)
         }
+        try container.encode(self.realm, forKey: .realm)
     }
 
     public required convenience init(from decoder: Decoder) throws {
@@ -286,6 +302,8 @@ open class OAuthSwiftCredential: NSObject, NSSecureCoding, Codable {
         if case .oauth1 = version {
             self.signatureMethod = SignatureMethod(rawValue: try container.decode(type(of: self.signatureMethod.rawValue), forKey: .signatureMethodRawValue))!
         }
+        
+        self.realm = try container.decode(String.self, forKey: .realm)
     }
 
     // MARK: functions
@@ -355,6 +373,7 @@ open class OAuthSwiftCredential: NSObject, NSSecureCoding, Codable {
 
     open func authorizationParameters(_ body: Data?, timestamp: String, nonce: String) -> OAuthSwift.Parameters {
         var authorizationParameters = OAuthSwift.Parameters()
+        authorizationParameters["realm"] = self.realm
         authorizationParameters["oauth_version"] = self.version.shortVersion
         authorizationParameters["oauth_signature_method"] =  self.signatureMethod.rawValue
         authorizationParameters["oauth_consumer_key"] = self.consumerKey
@@ -423,6 +442,7 @@ open class OAuthSwiftCredential: NSObject, NSSecureCoding, Codable {
             && lhs.oauthVerifier == rhs.oauthVerifier
             && lhs.version == rhs.version
             && lhs.signatureMethod == rhs.signatureMethod
+            && lhs.realm == rhs.realm
     }
 
 }
